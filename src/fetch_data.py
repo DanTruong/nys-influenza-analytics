@@ -1,10 +1,23 @@
 ## Fetch data from NYS Health API
 import os
 import requests
+from dotenv import load_dotenv
+from db import get_connection
+from load_data import insert_location, insert_occurrence, insert_case
 
+# Load variables from .env
+load_dotenv()
 URL = "https://health.data.ny.gov/api/v3/views/jr8b-6gh6/query.json"
-appToken = "TzrowUltuo5MRag1iGadIAmmt"
+app_token = os.getenv("SOCRATA_APP_TOKEN")
 
+if not app_token:
+    raise RuntimeError(
+        "SOCRATA_APP_TOKEN environment variable is not configured."
+    )
+
+headers = {
+    "X-App-Token": app_token
+}
 
 seasons = [
     "2009-2010",
@@ -18,8 +31,6 @@ seasons = [
     "2017-2018",
     "2018-2019"
 ]
-
-headers = {"X-App-Token": os.getenv(appToken)}
 
 page_size = 1000
 
@@ -70,15 +81,24 @@ for season in seasons:
 
 print("Download complete.")
 
+## Convert the JSON data into an SQL database
 
-## Make sure to ingest Season, Region, County, CDC Week, Week Ending, Disease, Count, County Centroid, and FIPS
+print("\nConnecting to PostgreSQL...")
 
-## Work with County, Week Ending Date (as Date), Disease, Incidents (as Count), and Coordinates (as County Centroid)
+with get_connection() as conn:
+    with conn.cursor() as cursor:
 
-## Separate Coordinates into Latitude and Longitude
+        for season, rows in influenza_data.items():
 
-## Separate date into Month, Day, and Year
+            print(f"Loading {season} into PostgreSQL...")
 
-## Rename Influenza labels as A, B, and Unspecified
+            for row in rows:
+                insert_location(cursor, row)
+                insert_occurrence(cursor, row)
+                insert_case(cursor, row)
 
-## Aggregate the flu data by sum of incidents (as a consolidated set)
+            print(f"  {season}: {len(rows):,} records processed")
+
+    conn.commit()
+
+print("Database load complete.")
