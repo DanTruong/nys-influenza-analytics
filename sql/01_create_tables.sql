@@ -38,6 +38,51 @@ CREATE TABLE cases (
         REFERENCES disease(code)
 );
 
+CREATE TABLE forecast_results (
+    date DATE NOT NULL,
+    fips VARCHAR(5) NOT NULL,
+
+    actual INTEGER NOT NULL,
+
+    hw_forecast DOUBLE PRECISION NOT NULL,
+    sarima_forecast DOUBLE PRECISION NOT NULL,
+
+    hw_absolute_error DOUBLE PRECISION NOT NULL,
+    sarima_absolute_error DOUBLE PRECISION NOT NULL,
+
+    hw_squared_error DOUBLE PRECISION NOT NULL,
+    sarima_squared_error DOUBLE PRECISION NOT NULL,
+
+    hw_converged BOOLEAN NOT NULL,
+    sarima_converged BOOLEAN NOT NULL,
+
+    PRIMARY KEY (date, fips),
+
+    CONSTRAINT fk_forecast_results_location
+        FOREIGN KEY (fips)
+        REFERENCES location(fips)
+);
+
+CREATE TABLE forecast_metrics (
+    fips VARCHAR(5) PRIMARY KEY,
+
+    hw_mae DOUBLE PRECISION NOT NULL,
+    hw_rmse DOUBLE PRECISION NOT NULL,
+
+    sarima_mae DOUBLE PRECISION NOT NULL,
+    sarima_rmse DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT fk_forecast_metrics_location
+        FOREIGN KEY (fips)
+        REFERENCES location(fips)
+);
+
+CREATE TABLE forecast_overall_metrics (
+    model VARCHAR(50) PRIMARY KEY,
+    mae DOUBLE PRECISION NOT NULL,
+    rmse DOUBLE PRECISION NOT NULL
+);
+
 INSERT INTO disease (code, description)
 VALUES
     ('A', 'Influenza A'),

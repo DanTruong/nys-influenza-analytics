@@ -5,6 +5,8 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from prepare_timeseries import prepare_forecast_timeseries, split_forecast_data
 from pmdarima import auto_arima
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+from database import save_forecast_results, save_forecast_metrics, save_forecast_overall_metrics
+
 import numpy as np
 
 FORECAST_HORIZON = 61
@@ -14,6 +16,7 @@ def forecast_sarima(training_data):
 
     for county in sorted(training_data["COUNTY"].unique()):
         county_data =  training_data[training_data["COUNTY"] == county].sort_values("DATE")
+        fips = county_data["FIPS"].iloc[0]
         incidents = county_data["INCIDENTS"].to_numpy()
         
         print(f"Fitting SARIMA: {county}")
@@ -46,8 +49,9 @@ def forecast_sarima(training_data):
 
         county_forecast = pd.DataFrame({
             "DATE": forecast_dates,
+            "FIPS": fips,
             "COUNTY": county,
-            "SARIMA_FORECAST ": predictions,
+            "SARIMA_FORECAST": predictions,
             "SARIMA_CONVERGED": converged
         })
 
@@ -61,6 +65,7 @@ def forecast_holt_winters(training_data):
 
     for county in sorted(training_data["COUNTY"].unique()):
         county_data = training_data[training_data["COUNTY"] == county].sort_values("DATE")
+        fips = county_data["FIPS"].iloc[0]
         incidents = county_data["INCIDENTS"].to_numpy()
         model = ExponentialSmoothing(incidents, seasonal="add", seasonal_periods=52)
 
@@ -85,7 +90,13 @@ def forecast_holt_winters(training_data):
             freq="W-SAT"
         )
 
-        county_forecast = pd.DataFrame({"DATE": forecast_dates, "COUNTY": county, "HW_FORECAST": predictions })
+        county_forecast = pd.DataFrame({
+            "DATE": forecast_dates,
+            "FIPS": fips,
+            "COUNTY": county,
+            "HW_FORECAST": predictions,
+            "HW_CONVERGED": converged
+        })
         forecasts.append(county_forecast)
 
     forecasts = pd.concat(forecasts, ignore_index=True)
@@ -106,24 +117,25 @@ def evaluate_holt_winters(forecasts, testing_data):
     
     return results
 
-def evaluate_forecasts(hw_forecasts, arima_forecasts, testing_data):
+def evaluate_forecasts(hw_forecasts, sarima_forecasts, testing_data):
     actuals = testing_data.groupby("COUNTY", group_keys=False).head(FORECAST_HORIZON)
-    results = hw_forecasts.merge(arima_forecasts, on=["DATE", "COUNTY"], how="inner")
+    results = hw_forecasts.merge(sarima_forecasts, on=["DATE", "FIPS", "COUNTY"], how="inner")
 
     results = results.merge(
         actuals[
             [
                 "DATE",
+                "FIPS",
                 "COUNTY",
                 "INCIDENTS",
                 "IMPUTED",
                 "OFFSEASON"
             ]
-        ], on=["DATE", "COUNTY"], how="inner"
+        ], on=["DATE", "FIPS", "COUNTY"], how="inner"
     )
 
     results["HW_ERROR"] = results["HW_FORECAST"] - results["INCIDENTS"]
-    results["SARIMA_ERROR"] = results["SARIMA_FORECAST "] - results["INCIDENTS"]
+    results["SARIMA_ERROR"] = results["SARIMA_FORECAST"] - results["INCIDENTS"]
     results["HW_SQUARED_ERROR"] = results["HW_ERROR"] ** 2
     results["SARIMA_SQUARED_ERROR"] = results["SARIMA_ERROR"] ** 2
 
@@ -140,7 +152,7 @@ def evaluate_forecasts(hw_forecasts, arima_forecasts, testing_data):
 def calculate_forecast_metrics(results):
     metrics = (
         results
-        .groupby("COUNTY")
+        .groupby(["FIPS", "COUNTY"])
         .agg(
             HW_MAE=(
                 "HW_ABSOLUTE_ERROR",
@@ -237,6 +249,12 @@ def main():
 
     metrics = calculate_forecast_metrics(results)
     overall_metrics = calculate_overall_metrics(results)
+
+    save_forecast_results(results)
+    save_forecast_metrics(metrics)
+    save_forecast_overall_metrics(overall_metrics)
+
+    print("\nForecast results saved to PostgreSQL.")
 
     print("\nCounty forecast metrics:")
     print(metrics.to_string(index=False))

@@ -27,7 +27,7 @@ def get_weekly_cases():
         with conn.cursor() as cursor:
             cursor.execute(query)
             rows = cursor.fetchall()
-            columns = ["DATE", "SEASON", "COUNTY", "INCIDENTS"]
+            columns = ["DATE", "SEASON", "FIPS", "COUNTY", "INCIDENTS"]
 
     return pd.DataFrame(rows, columns=columns)
 
@@ -39,7 +39,8 @@ def normalize_dates(df):
 def fill_missing_weeks(df):
     df["DATE"] = pd.to_datetime(df["DATE"])
     dates = (df[["DATE", "SEASON"]].drop_duplicates().sort_values("DATE"))
-    counties = (df[["COUNTY"]].drop_duplicates().sort_values("COUNTY"))
+    counties = df[["FIPS", "COUNTY"]].drop_duplicates().sort_values("FIPS")
+    
 
     complete = (
         dates.assign(key=1)
@@ -50,11 +51,12 @@ def fill_missing_weeks(df):
         .drop(columns="key")
     )
 
-    complete = complete.merge(df, on=["DATE", "SEASON", "COUNTY"], how="left")
+    complete = complete.merge(df, on=["DATE", "SEASON", "FIPS", "COUNTY"], how="left")
     complete["IMPUTED"] = complete["INCIDENTS"].isna()
     complete["INCIDENTS"] = (complete["INCIDENTS"].fillna(0).astype(int))
 
-    return complete.sort_values(["COUNTY", "DATE"]).reset_index(drop=True)
+    return complete.sort_values(["FIPS", "DATE"]).reset_index(drop=True)
+    
 
 def create_continuous_series(df):
     start_date = df["DATE"].min()
@@ -68,16 +70,15 @@ def create_continuous_series(df):
         )
     })
 
-    counties = (df[["COUNTY"]].drop_duplicates().sort_values("COUNTY"))
-
+    counties = df[["FIPS", "COUNTY"]].drop_duplicates().sort_values("FIPS")
     complete = weekly_dates.assign(key=1).merge(counties.assign(key=1),on="key").drop(columns="key")
-    complete = complete.merge(df, on=["DATE", "COUNTY"], how="left")
+    complete = complete.merge(df, on=["DATE", "FIPS", "COUNTY"], how="left")
 
     complete["OFFSEASON"] = complete["SEASON"].isna()
     complete["INCIDENTS"] = complete["INCIDENTS"].fillna(0).astype(int)
     complete["IMPUTED"] = complete["IMPUTED"].fillna(False).astype(bool)
 
-    return complete.sort_values(["COUNTY", "DATE"]).reset_index(drop=True)
+    return complete.sort_values(["FIPS", "DATE"]).reset_index(drop=True)
 
 def prepare_timeseries():
     weekly_cases = get_weekly_cases()
@@ -95,3 +96,25 @@ def split_forecast_data(df):
     training_data = df[df["DATE"] < test_start].copy()
     testing_data = df[df["DATE"] >= test_start].copy()
     return training_data, testing_data
+
+def main():
+    timeseries = prepare_forecast_timeseries()
+
+    print(timeseries.head(20))
+    print(timeseries.columns)
+    print(
+        timeseries[["FIPS", "COUNTY"]]
+        .drop_duplicates()
+        .sort_values("FIPS")
+        .to_string(index=False)
+    )
+
+    print(
+        "\nUnique FIPS/county combinations:",
+        timeseries[["FIPS", "COUNTY"]]
+        .drop_duplicates()
+        .shape[0]
+    )
+
+if __name__ == "__main__":
+    main()
