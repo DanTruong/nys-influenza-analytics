@@ -3,7 +3,6 @@ import warnings
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from prepare_timeseries import prepare_forecast_timeseries, split_forecast_data
-from pmdarima import auto_arima
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from database import (
     save_forecast_results,
@@ -109,23 +108,6 @@ def forecast_holt_winters(training_data):
     return forecasts, convergence_results
 
 
-def evaluate_holt_winters(forecasts, testing_data):
-    testing_data = testing_data.groupby("COUNTY", group_keys=False).head(
-        FORECAST_HORIZON
-    )
-
-    results = forecasts.merge(
-        testing_data[["DATE", "COUNTY", "INCIDENTS", "IMPUTED", "OFFSEASON"]],
-        on=["DATE", "COUNTY"],
-        how="inner",
-    )
-
-    results["HW_ERROR"] = results["HW_FORECAST"] - results["INCIDENTS"]
-    results["HW_SQUARED_ERROR"] = results["HW_ERROR"] ** 2
-
-    return results
-
-
 def evaluate_forecasts(hw_forecasts, sarima_forecasts, testing_data):
     actuals = testing_data.groupby("COUNTY", group_keys=False).head(FORECAST_HORIZON)
     results = hw_forecasts.merge(
@@ -191,8 +173,6 @@ def main():
     sarima_forecasts = forecast_sarima(training_data)
 
     results = evaluate_forecasts(hw_forecasts, sarima_forecasts, testing_data)
-
-    print(results.head(20))
 
     print("\nHolt-Winters forecast rows:")
     print(len(hw_forecasts))

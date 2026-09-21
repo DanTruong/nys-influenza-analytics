@@ -96,25 +96,3 @@ def split_forecast_data(df):
     training_data = df[df["DATE"] < test_start].copy()
     testing_data = df[df["DATE"] >= test_start].copy()
     return training_data, testing_data
-
-
-def main():
-    timeseries = prepare_forecast_timeseries()
-
-    print(timeseries.head(20))
-    print(timeseries.columns)
-    print(
-        timeseries[["FIPS", "COUNTY"]]
-        .drop_duplicates()
-        .sort_values("FIPS")
-        .to_string(index=False)
-    )
-
-    print(
-        "\nUnique FIPS/county combinations:",
-        timeseries[["FIPS", "COUNTY"]].drop_duplicates().shape[0],
-    )
-
-
-if __name__ == "__main__":
-    main()
