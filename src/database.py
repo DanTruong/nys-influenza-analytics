@@ -1,11 +1,19 @@
 import os
 import psycopg
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def get_connection():
+def get_connection() -> psycopg.Connection:
+    """Create a connection to the PostgreSQL database.
+
+    Database connection parameters are read from environment variables.
+
+    Returns:
+        An open PostgreSQL connection.
+    """
     return psycopg.connect(
         dbname=os.getenv("POSTGRES_DB"),
         user=os.getenv("POSTGRES_USER"),
@@ -15,7 +23,14 @@ def get_connection():
     )
 
 
-def save_forecast_results(results):
+def save_forecast_results(results: pd.DataFrame) -> None:
+    """Replace the stored county-level forecast evaluation results.
+
+    Args:
+        results: Forecast evaluation data containing actual observations,
+            Holt-Winters and SARIMA forecasts, error measurements, and
+            convergence indicators.
+    """
     query = """
         INSERT INTO forecast_results (
             date,
@@ -58,7 +73,13 @@ def save_forecast_results(results):
         conn.commit()
 
 
-def save_forecast_metrics(metrics):
+def save_forecast_metrics(metrics: pd.DataFrame) -> None:
+    """Replace the stored county-level forecast accuracy metrics.
+
+    Args:
+        metrics: County-level MAE and RMSE measurements for the
+            Holt-Winters and SARIMA models.
+    """
     query = """
         INSERT INTO forecast_metrics (
             fips,
@@ -83,7 +104,15 @@ def save_forecast_metrics(metrics):
         conn.commit()
 
 
-def save_forecast_overall_metrics(overall_metrics):
+def save_forecast_overall_metrics(
+    overall_metrics: pd.DataFrame,
+) -> None:
+    """Replace the stored overall forecast accuracy metrics.
+
+    Args:
+        overall_metrics: Overall MAE and RMSE measurements for each
+            forecasting model.
+    """
     query = """
         INSERT INTO forecast_overall_metrics (
             model,

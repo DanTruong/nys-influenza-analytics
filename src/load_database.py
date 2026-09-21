@@ -1,10 +1,24 @@
 from datetime import datetime
 from database import get_connection
+import psycopg
+from typing import Any
+
+SeasonRow = dict[str, Any]
+SeasonData = dict[str, list[SeasonRow]]
 
 DISEASE_CODES = {"INFLUENZA_A": "A", "INFLUENZA_B": "B", "INFLUENZA_UNSPECIFIED": "C"}
 
 
-def insert_location(cursor, row):
+def insert_location(
+    cursor: psycopg.Cursor,
+    row: SeasonRow,
+) -> None:
+    """Insert a county location record if it does not already exist.
+
+    Args:
+        cursor: Active PostgreSQL database cursor.
+        row: Influenza API record containing county location data.
+    """
     geo = row.get("geocoded_column") or {}
     cursor.execute(
         """
@@ -22,7 +36,16 @@ def insert_location(cursor, row):
     )
 
 
-def insert_occurrence(cursor, row):
+def insert_occurrence(
+    cursor: psycopg.Cursor,
+    row: SeasonRow,
+) -> None:
+    """Insert a weekly occurrence record if it does not already exist.
+
+    Args:
+        cursor: Active PostgreSQL database cursor.
+        row: Influenza API record containing date and season information.
+    """
     date = datetime.fromisoformat(row["weekendingdate"]).date()
     cursor.execute(
         """
@@ -34,7 +57,16 @@ def insert_occurrence(cursor, row):
     )
 
 
-def insert_case(cursor, row):
+def insert_case(
+    cursor: psycopg.Cursor,
+    row: SeasonRow,
+) -> None:
+    """Insert a county influenza case record if it does not already exist.
+
+    Args:
+        cursor: Active PostgreSQL database cursor.
+        row: Influenza API record containing case-count information.
+    """
     date = datetime.fromisoformat(row["weekendingdate"]).date()
     disease_code = DISEASE_CODES[row["disease"]]
     cursor.execute(
@@ -47,7 +79,15 @@ def insert_case(cursor, row):
     )
 
 
-def load_records(influenza_data):
+def load_records(influenza_data: SeasonData) -> None:
+    """Load downloaded influenza records into PostgreSQL.
+
+    Records are normalized into the location, occurrence, and cases
+    tables.
+
+    Args:
+        influenza_data: Influenza API records grouped by season.
+    """
     print("\nConnecting to PostgreSQL...")
 
     with get_connection() as conn:

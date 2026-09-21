@@ -1,6 +1,10 @@
 import os
 import requests
 from dotenv import load_dotenv
+from typing import Any
+
+SeasonRow = dict[str, Any]
+SeasonData = dict[str, list[SeasonRow]]
 
 load_dotenv()
 URL = "https://health.data.ny.gov/api/v3/views/jr8b-6gh6/query.json"
@@ -13,7 +17,20 @@ HEADERS = {"X-App-Token": APP_TOKEN}
 PAGE_SIZE = 1000
 
 
-def fetch_season(season):
+def fetch_season(season: str) -> list[SeasonRow]:
+    """Fetch all influenza records for a single season.
+
+    Retrieves records from the New York State Health Data SODA API,
+    automatically requesting additional pages until the entire season
+    has been downloaded.
+
+    Args:
+        season: Influenza season in YYYY-YYYY format.
+
+    Returns:
+        A list of API records for the requested season.
+    """
+
     print(f"Downloading {season}...")
     season_rows = []
     page_number = 1
@@ -46,7 +63,16 @@ def fetch_season(season):
     return season_rows
 
 
-def fetch_seasons(seasons):
+def fetch_seasons(seasons: list[str]) -> SeasonData:
+    """Fetch influenza records for multiple seasons.
+
+    Args:
+        seasons: Influenza seasons in YYYY-YYYY format.
+
+    Returns:
+        A dictionary mapping each season to its downloaded API records.
+    """
+
     influenza_data = {}
     for season in seasons:
         influenza_data[season] = fetch_season(season)

@@ -16,7 +16,8 @@ SEASONS = [
 ]
 
 
-def main():
+def main() -> None:
+    """Download configured influenza seasons and load them into PostgreSQL."""
     influenza_data = fetch_seasons(SEASONS)
     print("\nRecords by season:")
 

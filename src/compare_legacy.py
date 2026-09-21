@@ -4,10 +4,15 @@ from forecast import forecast_holt_winters
 
 from prepare_timeseries import prepare_forecast_timeseries, split_forecast_data
 
-LEGACY_FILE = "legacy-v1/data/arimaTable.csv"
+LEGACY_FILE = "legacy-data/arimaTable.csv"
 
 
-def load_legacy_forecasts():
+def load_legacy_forecasts() -> pd.DataFrame:
+    """Load and normalize Holt-Winters forecasts from the legacy R analysis.
+
+    Returns:
+        A DataFrame containing cleaned legacy county forecasts.
+    """
     legacy = pd.read_csv(LEGACY_FILE)
 
     legacy = legacy.dropna(subset=["County", "HW", "Time_Period"]).copy()
@@ -21,7 +26,25 @@ def load_legacy_forecasts():
     return legacy
 
 
-def compare_holt_winters(forecasts, convergence_results, legacy):
+def compare_holt_winters(
+    forecasts: pd.DataFrame,
+    convergence_results: pd.DataFrame,
+    legacy: pd.DataFrame,
+) -> pd.DataFrame:
+    """Compare modern Holt-Winters forecasts with legacy R forecasts.
+
+    Modern forecasts are aligned with the legacy forecast periods and
+    compared both as raw predictions and after reproducing the legacy
+    absolute-value and rounding transformation.
+
+    Args:
+        forecasts: Holt-Winters forecasts produced by the Python model.
+        convergence_results: County-level Python model convergence results.
+        legacy: Holt-Winters forecasts from the original R analysis.
+
+    Returns:
+        A DataFrame containing aligned forecasts and comparison metrics.
+    """
     modern = forecasts.copy()
 
     modern["TIME_PERIOD"] = modern.groupby("COUNTY").cumcount() + 1
@@ -50,7 +73,12 @@ def compare_holt_winters(forecasts, convergence_results, legacy):
     return comparison
 
 
-def summarize_comparison(comparison):
+def summarize_comparison(comparison: pd.DataFrame) -> None:
+    """Print summary statistics for the legacy forecast comparison.
+
+    Args:
+        comparison: Aligned modern and legacy Holt-Winters forecasts.
+    """
     print("\nComparison rows:")
     print(len(comparison))
 
@@ -75,7 +103,8 @@ def summarize_comparison(comparison):
     )
 
 
-def main():
+def main() -> None:
+    """Run the legacy Holt-Winters forecast comparison."""
     data = prepare_forecast_timeseries()
 
     training_data, _ = split_forecast_data(data)

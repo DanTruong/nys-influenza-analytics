@@ -13,9 +13,25 @@ from database import (
 import numpy as np
 
 FORECAST_HORIZON = 61
+SEASONAL_PERIOD = 52
+
+SARIMA_ORDER = (2, 1, 1)
+SARIMA_SEASONAL_ORDER = (0, 0, 1, SEASONAL_PERIOD)
 
 
-def forecast_sarima(training_data):
+def forecast_sarima(training_data: pd.DataFrame) -> pd.DataFrame:
+    """Generate county-level forecasts using the configured SARIMA model.
+
+    A separate SARIMA model is fitted to each county's weekly incident
+    series using the configured nonseasonal and seasonal orders.
+
+    Args:
+        training_data: County-level weekly training observations.
+
+    Returns:
+        County-level forecasts containing forecast dates, FIPS codes,
+        predicted incidents, and model convergence status.
+    """
     forecasts = []
 
     for county in sorted(training_data["COUNTY"].unique()):
@@ -28,8 +44,8 @@ def forecast_sarima(training_data):
         print(f"Fitting SARIMA: {county}")
         model = SARIMAX(
             incidents,
-            order=(2, 1, 1),
-            seasonal_order=(0, 0, 1, 52),
+            order=SARIMA_ORDER,
+            seasonal_order=SARIMA_SEASONAL_ORDER,
             enforce_stationarity=False,
             enforce_invertibility=False,
         )
@@ -61,7 +77,21 @@ def forecast_sarima(training_data):
     return pd.concat(forecasts, ignore_index=True)
 
 
-def forecast_holt_winters(training_data):
+def forecast_holt_winters(
+    training_data: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Generate county-level additive Holt-Winters forecasts.
+
+    A separate model with 52-week additive seasonality is fitted to each
+    county's weekly incident series.
+
+    Args:
+        training_data: County-level weekly training observations.
+
+    Returns:
+        A tuple containing the county-level forecast DataFrame and a
+        DataFrame reporting model convergence status for each county.
+    """
     forecasts = []
     convergence_results = []
 
@@ -71,7 +101,11 @@ def forecast_holt_winters(training_data):
         )
         fips = county_data["FIPS"].iloc[0]
         incidents = county_data["INCIDENTS"].to_numpy()
-        model = ExponentialSmoothing(incidents, seasonal="add", seasonal_periods=52)
+        model = ExponentialSmoothing(
+            incidents,
+            seasonal="add",
+            seasonal_periods=SEASONAL_PERIOD,
+        )
 
         with warnings.catch_warnings(record=True) as caught_warnings:
             warnings.simplefilter("always", ConvergenceWarning)
@@ -108,7 +142,25 @@ def forecast_holt_winters(training_data):
     return forecasts, convergence_results
 
 
-def evaluate_forecasts(hw_forecasts, sarima_forecasts, testing_data):
+def evaluate_forecasts(
+    hw_forecasts: pd.DataFrame,
+    sarima_forecasts: pd.DataFrame,
+    testing_data: pd.DataFrame,
+) -> pd.DataFrame:
+    """Compare model forecasts with observed testing data.
+
+    Forecasts are aligned with actual county-week observations and
+    absolute and squared forecast errors are calculated for both models.
+
+    Args:
+        hw_forecasts: Holt-Winters county-level forecasts.
+        sarima_forecasts: SARIMA county-level forecasts.
+        testing_data: Observed county-level testing data.
+
+    Returns:
+        A DataFrame containing forecasts, actual observations,
+        convergence indicators, and forecast errors.
+    """
     actuals = testing_data.groupby("COUNTY", group_keys=False).head(FORECAST_HORIZON)
     results = hw_forecasts.merge(
         sarima_forecasts, on=["DATE", "FIPS", "COUNTY"], how="inner"
@@ -132,7 +184,17 @@ def evaluate_forecasts(hw_forecasts, sarima_forecasts, testing_data):
     return results
 
 
-def calculate_forecast_metrics(results):
+def calculate_forecast_metrics(
+    results: pd.DataFrame,
+) -> pd.DataFrame:
+    """Calculate county-level forecast accuracy metrics.
+
+    Args:
+        results: Evaluated Holt-Winters and SARIMA forecasts.
+
+    Returns:
+        A DataFrame containing MAE and RMSE for each model and county.
+    """
     metrics = (
         results.groupby(["FIPS", "COUNTY"])
         .agg(
@@ -147,7 +209,17 @@ def calculate_forecast_metrics(results):
     return metrics
 
 
-def calculate_overall_metrics(results):
+def calculate_overall_metrics(
+    results: pd.DataFrame,
+) -> pd.DataFrame:
+    """Calculate overall forecast accuracy metrics.
+
+    Args:
+        results: Evaluated Holt-Winters and SARIMA forecasts.
+
+    Returns:
+        A DataFrame containing overall MAE and RMSE for each model.
+    """
     return pd.DataFrame(
         {
             "MODEL": ["Holt-Winters", "SARIMA"],
@@ -163,7 +235,8 @@ def calculate_overall_metrics(results):
     )
 
 
-def main():
+def main() -> None:
+    """Run the county-level forecasting and evaluation pipeline."""
     data = prepare_forecast_timeseries()
 
     training_data, testing_data = split_forecast_data(data)
