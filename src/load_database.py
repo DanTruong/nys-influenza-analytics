@@ -1,11 +1,7 @@
 from datetime import datetime
 from database import get_connection
 
-DISEASE_CODES = {
-    "INFLUENZA_A": "A",
-    "INFLUENZA_B": "B",
-    "INFLUENZA_UNSPECIFIED": "C"
-}
+DISEASE_CODES = {"INFLUENZA_A": "A", "INFLUENZA_B": "B", "INFLUENZA_UNSPECIFIED": "C"}
 
 
 def insert_location(cursor, row):
@@ -16,8 +12,15 @@ def insert_location(cursor, row):
         VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (fips) DO NOTHING;
         """,
-        (row["fips"], row["county"], geo.get("latitude"), geo.get("longitude"), row["region"])
+        (
+            row["fips"],
+            row["county"],
+            geo.get("latitude"),
+            geo.get("longitude"),
+            row["region"],
+        ),
     )
+
 
 def insert_occurrence(cursor, row):
     date = datetime.fromisoformat(row["weekendingdate"]).date()
@@ -27,8 +30,9 @@ def insert_occurrence(cursor, row):
         VALUES (%s, %s, %s)
         ON CONFLICT (date) DO NOTHING;
         """,
-        (date, int(row["cdcweek"]), row["season"])
+        (date, int(row["cdcweek"]), row["season"]),
     )
+
 
 def insert_case(cursor, row):
     date = datetime.fromisoformat(row["weekendingdate"]).date()
@@ -39,7 +43,7 @@ def insert_case(cursor, row):
         VALUES (%s, %s, %s, %s)
         ON CONFLICT (date, fips, code) DO NOTHING;
         """,
-        (date, row["fips"], int(row["count"]), disease_code)
+        (date, row["fips"], int(row["count"]), disease_code),
     )
 
 
@@ -56,9 +60,6 @@ def load_records(influenza_data):
                     insert_occurrence(cursor, row)
                     insert_case(cursor, row)
 
-                print(
-                    f"  {season}: "
-                    f"{len(rows):,} records processed"
-                )
+                print(f"  {season}: " f"{len(rows):,} records processed")
         conn.commit()
     print("Database load complete.")

@@ -11,8 +11,9 @@ def get_connection():
         user=os.getenv("POSTGRES_USER"),
         password=os.getenv("POSTGRES_PASSWORD"),
         host=os.getenv("POSTGRES_HOST"),
-        port=os.getenv("POSTGRES_PORT")
+        port=os.getenv("POSTGRES_PORT"),
     )
+
 
 def save_forecast_results(results):
     query = """
@@ -44,7 +45,7 @@ def save_forecast_results(results):
             row.HW_SQUARED_ERROR,
             row.SARIMA_SQUARED_ERROR,
             row.HW_CONVERGED,
-            row.SARIMA_CONVERGED
+            row.SARIMA_CONVERGED,
         )
         for row in results.itertuples(index=False)
     ]
@@ -55,6 +56,7 @@ def save_forecast_results(results):
             cursor.executemany(query, rows)
 
         conn.commit()
+
 
 def save_forecast_metrics(metrics):
     query = """
@@ -69,13 +71,7 @@ def save_forecast_metrics(metrics):
     """
 
     rows = [
-        (
-            row.FIPS,
-            row.HW_MAE,
-            row.HW_RMSE,
-            row.SARIMA_MAE,
-            row.SARIMA_RMSE
-        )
+        (row.FIPS, row.HW_MAE, row.HW_RMSE, row.SARIMA_MAE, row.SARIMA_RMSE)
         for row in metrics.itertuples(index=False)
     ]
 
@@ -85,6 +81,7 @@ def save_forecast_metrics(metrics):
             cursor.executemany(query, rows)
 
         conn.commit()
+
 
 def save_forecast_overall_metrics(overall_metrics):
     query = """
@@ -97,19 +94,13 @@ def save_forecast_overall_metrics(overall_metrics):
     """
 
     rows = [
-        (
-            row.MODEL,
-            row.MAE,
-            row.RMSE
-        )
+        (row.MODEL, row.MAE, row.RMSE)
         for row in overall_metrics.itertuples(index=False)
     ]
 
     with get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(
-                "TRUNCATE TABLE forecast_overall_metrics;"
-            )
+            cursor.execute("TRUNCATE TABLE forecast_overall_metrics;")
             cursor.executemany(query, rows)
 
         conn.commit()

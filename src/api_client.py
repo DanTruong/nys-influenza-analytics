@@ -9,8 +9,9 @@ APP_TOKEN = os.getenv("SOCRATA_APP_TOKEN")
 if not APP_TOKEN:
     raise RuntimeError("SOCRATA_APP_TOKEN environment variable is not configured.")
 
-HEADERS = { "X-App-Token": APP_TOKEN }
+HEADERS = {"X-App-Token": APP_TOKEN}
 PAGE_SIZE = 1000
+
 
 def fetch_season(season):
     print(f"Downloading {season}...")
@@ -24,21 +25,15 @@ def fetch_season(season):
                 WHERE season = '{season}'
                 ORDER BY weekendingdate, county, disease
             """,
-            "page": {
-                "pageNumber": page_number,
-                "pageSize": PAGE_SIZE
-            },
-            "includeSynthetic": False
+            "page": {"pageNumber": page_number, "pageSize": PAGE_SIZE},
+            "includeSynthetic": False,
         }
 
         response = requests.post(URL, headers=HEADERS, json=payload)
         response.raise_for_status()
         rows = response.json()
 
-        print(
-            f"  Page {page_number}: "
-            f"{len(rows)} records"
-        )
+        print(f"  Page {page_number}: " f"{len(rows)} records")
 
         season_rows.extend(rows)
 
@@ -47,10 +42,7 @@ def fetch_season(season):
 
         page_number += 1
 
-    print(
-        f"  {season} complete: "
-        f"{len(season_rows)} records\n"
-    )
+    print(f"  {season} complete: " f"{len(season_rows)} records\n")
     return season_rows
 
 
