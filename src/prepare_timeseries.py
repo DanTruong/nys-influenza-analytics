@@ -5,6 +5,7 @@ def get_weekly_cases():
     query = """
         SELECT  o.date          AS DATE_OF_RECORD
         ,       o.season        AS SEASON
+        ,       l.fips          AS FIPS
         ,       l.county_name   AS COUNTY
         ,       SUM(c.count)    AS INCIDENTS
         FROM cases c
