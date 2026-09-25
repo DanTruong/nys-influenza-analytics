@@ -488,31 +488,3 @@ The modern implementation is not intended to reproduce every numerical result of
 Instead, this project preserves the original analytical problem while demonstrating how the workflow can be implemented using a contemporary data analytics stack.
 
 The original R/Shiny implementation is maintained separately as a historical companion project.
-
-## Version 1.0
-
-Version 1.0 establishes the project's complete end-to-end analytical workflow:
-
-```text
-NYS Open Data
-      ↓
-Python
-      ↓
-PostgreSQL
-      ↓
-Time-Series Preparation
-      ↓
-Holt-Winters + SARIMA
-      ↓
-Forecast Evaluation
-      ↓
-PostgreSQL Analytics
-      ↓
-Power BI
-```
-
-Future development can build on this foundation with additional dashboard views, forecasting models, model diagnostics, geographic analysis, automated testing, and expanded reporting.
-
-## License
-
-See the repository's license file for licensing information.
